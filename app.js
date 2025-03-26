@@ -2,7 +2,7 @@
 const config = {
   startHour: 8,
   endHour: 21,
-  announceType: 'halfhour', // Default to half-hour
+  announceType: 'halfhour',
   language: 'en'
 };
 
@@ -25,7 +25,7 @@ const locale = {
     announceHalf: "Half-hour announcements",
     oclock: "o'clock",
     halfPast: "half past",
-    currentTime: "Current time is"
+    currentTime: "The time is now "
   },
   zh: {
     appTitle: "报时器",
@@ -44,7 +44,7 @@ const locale = {
     announceHalf: "仅半点报时",
     oclock: "点整",
     halfPast: "点30分",
-    currentTime: "现在是"
+    currentTime: "现在时间是"
   }
 };
 
@@ -67,7 +67,23 @@ const elements = {
   announceHalfHour: document.getElementById('announceHalfHour')
 };
 
-let timerId = null;
+// Create Web Worker for background timing
+const workerCode = `
+    let timer;
+    self.onmessage = function(e) {
+        if (e.data.command === 'start') {
+            const interval = e.data.interval;
+            timer = setInterval(() => {
+                self.postMessage('tick');
+            }, interval);
+        } else if (e.data.command === 'stop') {
+            clearInterval(timer);
+        }
+    };
+`;
+const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
+const workerUrl = URL.createObjectURL(workerBlob);
+const worker = new Worker(workerUrl);
 
 function updateLanguage() {
   const lang = config.language;
@@ -101,31 +117,32 @@ function announceTime(initialAnnouncement = false) {
     elements.timeDisplay.classList.remove('time-update');
   }, 500);
 
-  // Generate speech text
+  // Always announce the current time when triggered
   let speechText = '';
-  let shouldAnnounce = false;
+  const displayHours12 = hours % 12 || 12;
 
-  if (initialAnnouncement) {
-    shouldAnnounce = true;
-    if (config.announceType === 'hour') {
-      speechText = `${t.currentTime} ${hours % 12 || 12} ${t.oclock}`;
-    } else {
-      speechText = `${t.currentTime} ${hours % 12 || 12}${t.halfPast}`;
-    }
+  if (minutes === 0) {
+    speechText = lang === 'en'
+      ? `${t.currentTime} ${displayHours12} ${t.oclock}`
+      : `${t.currentTime}${hours}${t.oclock}`;
+  } else if (minutes === 30) {
+    speechText = lang === 'en'
+      ? `${t.currentTime} ${t.halfPast} ${displayHours12}`
+      : `${t.currentTime}${hours}${t.halfPast}`;
   } else {
-    if (minutes === 0 && config.announceType === 'hour') {
-      speechText = `${t.currentTime} ${hours % 12 || 12} ${t.oclock}`;
-      shouldAnnounce = true;
-    } else if (minutes === 30 && config.announceType === 'halfhour') {
-      speechText = `${t.currentTime} ${hours % 12 || 12}${t.halfPast}`;
-      shouldAnnounce = true;
-    }
+    // Announce exact time if not on the hour or half-hour
+    speechText = lang === 'en'
+      ? `${t.currentTime} ${displayHours12}:${displayMinutes}`
+      : `${t.currentTime}${hours}点${displayMinutes}分`;
   }
 
-  if (shouldAnnounce && speechText && isWithinTimeRange(now)) {
-    const utterance = new SpeechSynthesisUtterance(speechText);
-    utterance.lang = lang === 'en' ? 'en-US' : 'zh-CN';
-    window.speechSynthesis.speak(utterance);
+  if (isWithinTimeRange(now)) {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    audioContext.resume().then(() => {
+      const utterance = new SpeechSynthesisUtterance(speechText);
+      utterance.lang = lang === 'en' ? 'en-US' : 'zh-CN';
+      window.speechSynthesis.speak(utterance);
+    });
 
     elements.status.textContent = initialAnnouncement
       ? t.statusInitial
@@ -195,15 +212,28 @@ function updateConfig() {
 }
 
 function setupTimer(initialAnnouncement = true) {
-  if (timerId) clearTimeout(timerId);
+  // Stop any existing worker
+  worker.postMessage({ command: 'stop' });
 
+  // Announce immediately
   announceTime(initialAnnouncement);
 
-  const msToNext = getMsToNextAnnouncement();
-  timerId = setTimeout(() => {
-    setupTimer(false);
-  }, msToNext);
+  // Calculate interval for worker
+  const interval = config.announceType === 'hour' ? 3600000 : 1800000; // 1 hour or 30 minutes
+
+  // Start worker with the calculated interval
+  worker.postMessage({
+    command: 'start',
+    interval: interval
+  });
 }
+
+// Handle messages from worker
+worker.onmessage = function (e) {
+  if (e.data === 'tick') {
+    announceTime(false);
+  }
+};
 
 function initApp() {
   elements.langToggle.addEventListener('click', () => {
@@ -227,6 +257,17 @@ function initApp() {
 
   updateConfig();
   setupTimer(true);
+
+  // Handle page visibility changes
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      // Update display when tab becomes visible again
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      elements.timeDisplay.textContent = `${hours}:${minutes}`;
+    }
+  });
 }
 
 window.onload = initApp;
