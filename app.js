@@ -92,10 +92,14 @@ function announceTime(initialAnnouncement = false) {
   const lang = config.language;
   const t = locale[lang];
 
-  // Update time display
+  // Update time display with animation
   const displayHours = hours.toString().padStart(2, '0');
   const displayMinutes = minutes.toString().padStart(2, '0');
   elements.timeDisplay.textContent = `${displayHours}:${displayMinutes}`;
+  elements.timeDisplay.classList.add('time-update');
+  setTimeout(() => {
+    elements.timeDisplay.classList.remove('time-update');
+  }, 500);
 
   // Generate speech text
   let speechText = '';
