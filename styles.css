@@ -1,0 +1,97 @@
+body {
+  font-family: Arial, 'Microsoft YaHei', sans-serif;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #f5f5f5;
+}
+
+.container {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+  text-align: center;
+  color: #333;
+}
+
+.language-toggle {
+  text-align: right;
+  margin-bottom: 15px;
+}
+
+.language-toggle button {
+  background: none;
+  border: none;
+  color: #1890ff;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.control-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.time-section,
+.announce-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.announce-section {
+  grid-column: span 2;
+}
+
+label {
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+select,
+.radio-group {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.radio-group {
+  display: flex;
+  justify-content: space-around;
+  background: #f9f9f9;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+}
+
+button#updateBtn {
+  width: 100%;
+  padding: 10px;
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.display-area {
+  margin-top: 20px;
+  text-align: center;
+}
+
+#timeDisplay {
+  font-size: 2em;
+  margin: 10px 0;
+}
+
+#status,
+#scheduleInfo {
+  color: #666;
+}
